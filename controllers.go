@@ -22,14 +22,6 @@ type Claims struct {
 }
 
 func Signup(w http.ResponseWriter, r *http.Request) {
-	type SignupRequest struct {
-		Name            string `json:"name"`
-		Email           string `json:"email"`
-		Password        string `json:"password"`
-		UserType        string `json:"user_type"`
-		ProfileHeadline string `json:"profile_headline"`
-		Address         string `json:"address"`
-	}
 
 	var req SignupRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -55,10 +47,6 @@ func Signup(w http.ResponseWriter, r *http.Request) {
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
-	type LoginRequest struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
 
 	var req LoginRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -181,13 +169,6 @@ func UploadResume(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-type ResumeDetails struct {
-	Skills     string `json:"skills"`
-	Education  string `json:"education"`
-	Experience string `json:"experience"`
-	Phone      string `json:"phone"`
-}
-
 func uploadAndParseResume(filePath string) (*ResumeDetails, error) {
 	// Open the file
 	file, err := os.Open(filePath)
@@ -234,11 +215,6 @@ func uploadAndParseResume(filePath string) (*ResumeDetails, error) {
 }
 
 func CreateJob(w http.ResponseWriter, r *http.Request) {
-	type CreateJobRequest struct {
-		Title       string `json:"title"`
-		Description string `json:"description"`
-		CompanyName string `json:"company_name"`
-	}
 
 	var req CreateJobRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -263,15 +239,6 @@ func GetJob(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	jobID := vars["job_id"]
 
-	type Job struct {
-		ID                int       `json:"id"`
-		Title             string    `json:"title"`
-		Description       string    `json:"description"`
-		PostedOn          time.Time `json:"posted_on"`
-		CompanyName       string    `json:"company_name"`
-		TotalApplications int       `json:"total_applications"`
-	}
-
 	var job Job
 
 	query := `SELECT id, title, description, posted_on, company_name, total_applications
@@ -290,13 +257,6 @@ func GetJob(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetApplicants(w http.ResponseWriter, r *http.Request) {
-	type Applicant struct {
-		ID              int    `json:"id"`
-		Name            string `json:"name"`
-		Email           string `json:"email"`
-		Address         string `json:"address"`
-		ProfileHeadline string `json:"profile_headline"`
-	}
 
 	var applicants []Applicant
 
@@ -330,18 +290,6 @@ func GetApplicant(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	applicantID := vars["applicant_id"]
 
-	type ApplicantProfile struct {
-		Name              string `json:"name"`
-		Email             string `json:"email"`
-		Address           string `json:"address"`
-		ProfileHeadline   string `json:"profile_headline"`
-		ResumeFileAddress string `json:"resume_file_address"`
-		Skills            string `json:"skills"`
-		Education         string `json:"education"`
-		Experience        string `json:"experience"`
-		Phone             string `json:"phone"`
-	}
-
 	var profile ApplicantProfile
 
 	query := `SELECT u.name, u.email, u.address, u.profile_headline, p.resume_file_address, p.skills, p.education, p.experience, p.phone
@@ -363,14 +311,6 @@ func GetApplicant(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetJobs(w http.ResponseWriter, r *http.Request) {
-	type Job struct {
-		ID                int       `json:"id"`
-		Title             string    `json:"title"`
-		Description       string    `json:"description"`
-		PostedOn          time.Time `json:"posted_on"`
-		CompanyName       string    `json:"company_name"`
-		TotalApplications int       `json:"total_applications"`
-	}
 
 	var jobs []Job
 
