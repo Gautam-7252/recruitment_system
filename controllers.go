@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"time"
@@ -215,6 +216,21 @@ func uploadAndParseResume(filePath string) (*ResumeDetails, error) {
 }
 
 func CreateJob(w http.ResponseWriter, r *http.Request) {
+	userEmail := r.Header.Get("email")
+
+	// Validate user type
+	var userType string
+	query := `SELECT user_type FROM users WHERE email = ?`
+	err := db.QueryRow(query, userEmail).Scan(&userType)
+	if err != nil {
+		http.Error(w, "Internal Server Error in usertype", http.StatusInternalServerError)
+		return
+	}
+
+	if userType != "Admin" {
+		http.Error(w, "Only Admins can create job", http.StatusForbidden)
+		return
+	}
 
 	var req CreateJobRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -222,11 +238,9 @@ func CreateJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userEmail := r.Header.Get("email")
-
-	query := `INSERT INTO jobs (title, description, posted_on, total_applications, company_name, posted_by, created_at, updated_at)
+	query = `INSERT INTO jobs (title, description, posted_on, total_applications, company_name, posted_by, created_at, updated_at)
               VALUES (?, ?, NOW(), 0, ?, (SELECT id FROM users WHERE email = ?), NOW(), NOW())`
-	_, err := db.Exec(query, req.Title, req.Description, req.CompanyName, userEmail)
+	_, err = db.Exec(query, req.Title, req.Description, req.CompanyName, userEmail)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -240,10 +254,11 @@ func GetJob(w http.ResponseWriter, r *http.Request) {
 	jobID := vars["job_id"]
 
 	var job Job
+	var postedOn []byte
 
 	query := `SELECT id, title, description, posted_on, company_name, total_applications
               FROM jobs WHERE id = ?`
-	err := db.QueryRow(query, jobID).Scan(&job.ID, &job.Title, &job.Description, &job.PostedOn, &job.CompanyName, &job.TotalApplications)
+	err := db.QueryRow(query, jobID).Scan(&job.ID, &job.Title, &job.Description, &postedOn, &job.CompanyName, &job.TotalApplications)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Job not found", http.StatusNotFound)
@@ -311,12 +326,12 @@ func GetApplicant(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetJobs(w http.ResponseWriter, r *http.Request) {
-
 	var jobs []Job
 
 	query := `SELECT id, title, description, posted_on, company_name, total_applications FROM jobs`
 	rows, err := db.Query(query)
 	if err != nil {
+		log.Printf("Error querying database: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
@@ -324,20 +339,37 @@ func GetJobs(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var job Job
-		err := rows.Scan(&job.ID, &job.Title, &job.Description, &job.PostedOn, &job.CompanyName, &job.TotalApplications)
+		var postedOn []byte
+
+		err := rows.Scan(&job.ID, &job.Title, &job.Description, &postedOn, &job.CompanyName, &job.TotalApplications)
 		if err != nil {
+			log.Printf("Error scanning row: %v", err)
 			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 			return
 		}
+
+		// Convert the posted_on value from []byte to time.Time
+		job.PostedOn, err = time.Parse("2024-05-02 15:04:05", string(postedOn))
+		if err != nil {
+			log.Printf("Error parsing posted_on value: %v", err)
+			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+			return
+		}
+
 		jobs = append(jobs, job)
 	}
 
 	if err := rows.Err(); err != nil {
+		log.Printf("Error iterating rows: %v", err)
 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 		return
 	}
 
-	json.NewEncoder(w).Encode(jobs)
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(jobs); err != nil {
+		log.Printf("Error encoding response: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
 }
 
 func ApplyJob(w http.ResponseWriter, r *http.Request) {
